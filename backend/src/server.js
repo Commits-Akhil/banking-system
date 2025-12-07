@@ -10,7 +10,6 @@ const {
   deposit,
   withdraw
 } = require("./bankingLogic");
-const { setLock, waitFor } = require("./utils/lockSystem");
 const { mainFile, resultFile } = require("./utils/filePaths");
 
 const app = express();
@@ -101,22 +100,34 @@ app.post("/fd", (req, res) => {
     return res.status(400).json({ error: "Missing parameters" });
   }
 
-  // Wait for lock to be 0
-  waitFor("0", () => {
-    // Set lock to 1
-    setLock(1);
+  // Clear result file first to avoid reading stale data
+  fs.writeFileSync(resultFile, "");
 
-    // Write to main.txt
-    const data = "FD\n" + principal + "\n" + rate + "\n" + time + "\n";
-    fs.writeFileSync(mainFile, data);
+  // Write input to main.txt
+  const data = "FD\n" + principal + "\n" + rate + "\n" + time + "\n";
+  fs.writeFileSync(mainFile, data);
 
-    // Wait for C++ to process and set lock to 0
-    waitFor("0", () => {
-      // Read result.txt
+  // Wait for C++ to process
+  const startTime = Date.now();
+  const checkInterval = setInterval(() => {
+    try {
       const result = fs.readFileSync(resultFile, "utf8").trim();
-      res.json({ success: true, result: result });
-    });
-  });
+      if (result && result.startsWith("FD Maturity Amount")) {
+        clearInterval(checkInterval);
+        res.json({ success: true, result: result });
+      }
+    } catch (err) {
+      // Result file not ready yet
+    }
+    
+    // Timeout after 5 seconds
+    if (Date.now() - startTime > 5000) {
+      clearInterval(checkInterval);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Calculation timeout" });
+      }
+    }
+  }, 100);
 });
 
 // Loan Calculator endpoint
@@ -127,22 +138,34 @@ app.post("/loan", (req, res) => {
     return res.status(400).json({ error: "Missing parameters" });
   }
 
-  // Wait for lock to be 0
-  waitFor("0", () => {
-    // Set lock to 1
-    setLock(1);
+  // Clear result file first to avoid reading stale data
+  fs.writeFileSync(resultFile, "");
 
-    // Write to main.txt
-    const data = "LOAN\n" + principal + "\n" + rate + "\n" + time + "\n";
-    fs.writeFileSync(mainFile, data);
+  // Write input to main.txt
+  const data = "LOAN\n" + principal + "\n" + rate + "\n" + time + "\n";
+  fs.writeFileSync(mainFile, data);
 
-    // Wait for C++ to process and set lock to 0
-    waitFor("0", () => {
-      // Read result.txt
+  // Wait for C++ to process
+  const startTime = Date.now();
+  const checkInterval = setInterval(() => {
+    try {
       const result = fs.readFileSync(resultFile, "utf8").trim();
-      res.json({ success: true, result: result });
-    });
-  });
+      if (result && result.startsWith("Loan EMI")) {
+        clearInterval(checkInterval);
+        res.json({ success: true, result: result });
+      }
+    } catch (err) {
+      // Result file not ready yet
+    }
+    
+    // Timeout after 5 seconds
+    if (Date.now() - startTime > 5000) {
+      clearInterval(checkInterval);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Calculation timeout" });
+      }
+    }
+  }, 100);
 });
 
 app.listen(PORT, () => {

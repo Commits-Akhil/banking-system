@@ -1,36 +1,36 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import {useEffect,useState} from "react";
+import {useRouter} from "next/navigation";
 import Link from "next/link";
 
-export default function DashboardPage() {
-  const [userId, setUserId] = useState("");
-  const [balance, setBalance] = useState(0);
-  const router = useRouter();
+export default function DashboardPage(){
+  const [userId,setUserId]=useState("");
+  const [bal,setBal]= useState(0);
+  const router= useRouter();
 
-  useEffect(() => {
-    const storedUserId = localStorage.getItem("userId");
-    if (!storedUserId) {
+  useEffect(()=>{
+    const uid=localStorage.getItem("userId");
+    if(!uid){
       router.push("/login");
       return;
     }
-    setUserId(storedUserId);
-    fetchBalance(storedUserId);
-  }, []);
+    setUserId(uid);
+    getBalance(uid);
+  },[]);
 
-  const fetchBalance = async (uid) => {
-    try {
-      const response = await fetch(`http://localhost:5000/balance/${uid}`);
-      const data = await response.json();
-      if (data.success) {
-        setBalance(data.balance);
+  const getBalance=async(uid)=>{
+    try{
+      const res=await fetch(`http://localhost:5000/balance/${uid}`);
+      const data=await res.json();
+      if(data.success){
+        setBal(data.balance);
       }
-    } catch (error) {
-      console.error("Error fetching balance:", error);
+    }catch(err){
+      console.error("Error fetching balance:",err);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout=()=>{
     localStorage.removeItem("userId");
     router.push("/login");
   };
@@ -55,9 +55,9 @@ export default function DashboardPage() {
 
         <div className="bg-white p-6 rounded shadow-md mb-6">
           <h2 className="text-xl font-bold mb-2">Current Balance</h2>
-          <p className="text-3xl font-bold text-green-600">₹{balance}</p>
+          <p className="text-3xl font-bold text-green-600">₹{bal}</p>
           <button
-            onClick={() => fetchBalance(userId)}
+            onClick={()=>getBalance(userId)}
             className="mt-4 bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
           >
             Refresh Balance

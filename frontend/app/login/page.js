@@ -1,37 +1,37 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import {useState} from "react";
+import {useRouter} from "next/navigation";
 
-export default function LoginPage() {
-  const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
-  const router = useRouter();
+export default function LoginPage(){
+  const [userId,setUserId]=useState("");
+  const [password,setPassword]= useState("");
+  const [msg,setMsg] = useState("");
+  const router=useRouter();
 
-  const handleLogin = async (e) => {
+  const handleLogin=async(e)=>{
     e.preventDefault();
     
-    try {
-      const response = await fetch("http://localhost:5000/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, password })
+    try{
+      const res = await fetch("http://localhost:5000/login",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({userId,password})
       });
 
-      const data = await response.json();
+      const data=await res.json();
 
-      if (data.success) {
-        localStorage.setItem("userId", userId);
+      if(data.success){
+        localStorage.setItem("userId",userId);
         router.push("/dashboard");
-      } else {
-        setMessage(data.error || "Login failed");
+      }else{
+        setMsg(data.error||"Login failed");
       }
-    } catch (error) {
-      setMessage("Error connecting to server");
+    }catch(error){
+      setMsg("Error connecting to server");
     }
   };
 
-  return (
+  return(
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded shadow-md w-96">
         <h1 className="text-2xl font-bold mb-6 text-center">Banking System Login</h1>
@@ -42,7 +42,7 @@ export default function LoginPage() {
             <input
               type="text"
               value={userId}
-              onChange={(e) => setUserId(e.target.value)}
+              onChange={(e)=>setUserId(e.target.value)}
               className="w-full p-2 border rounded"
               required
             />
@@ -53,7 +53,7 @@ export default function LoginPage() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e)=>setPassword(e.target.value)}
               className="w-full p-2 border rounded"
               required
             />
@@ -67,8 +67,8 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {message && (
-          <p className="mt-4 text-center text-sm text-red-500">{message}</p>
+        {msg&&(
+          <p className="mt-4 text-center text-sm text-red-500">{msg}</p>
         )}
       </div>
     </div>

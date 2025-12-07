@@ -4,110 +4,119 @@
 #include <thread>
 #include <chrono>
 #include <iostream>
+#include <sys/stat.h>
 
 using namespace std;
 
-// File paths
-string lockFile = "../shared-data/lock.txt";
-string mainFile = "../shared-data/main.txt";
-string resultFile = "../shared-data/result.txt";
+string inputPath = "../shared-data/main.txt";
+string outputPath = "../shared-data/result.txt";
 
-// Read lock value
-string readLock() {
-    ifstream file(lockFile);
-    string value;
-    if (file.is_open()) {
-        getline(file, value);
-        file.close();
-    }
-    return value;
+bool fileExists(const string &path)
+{
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
 }
 
-// Write lock value
-void writeLock(string value) {
-    ofstream file(lockFile);
-    if (file.is_open()) {
-        file << value;
-        file.close();
+long getFileModTime(const string &path)
+{
+    struct stat buffer;
+    if (stat(path.c_str(), &buffer) == 0)
+    {
+        return buffer.st_mtime;
     }
+    return 0;
 }
 
-// Read main.txt
-void readMainFile(string &operation, double &val1, double &val2, double &val3) {
-    ifstream file(mainFile);
-    if (file.is_open()) {
+bool readInput(string &operation, double &principal, double &rate, double &time)
+{
+    ifstream file(inputPath);
+    if (file.is_open())
+    {
         getline(file, operation);
+        if (operation.empty())
+        {
+            file.close();
+            return false;
+        }
         string line;
         getline(file, line);
-        val1 = stod(line);
+        principal = stod(line);
         getline(file, line);
-        val2 = stod(line);
+        rate = stod(line);
         getline(file, line);
-        val3 = stod(line);
+        time = stod(line);
         file.close();
+        return true;
     }
+    return false;
 }
 
-// Write result.txt
-void writeResult(string result) {
-    ofstream file(resultFile);
-    if (file.is_open()) {
+void saveResult(string result)
+{
+    ofstream file(outputPath);
+    if (file.is_open())
+    {
         file << result;
         file.close();
     }
 }
 
-// Calculate FD
-double calculateFD(double principal, double rate, double time) {
-    // A = P * (1 + r/100)^t
-    double amount = principal * pow((1 + rate / 100), time);
-    return amount;
+double calcFD(double principal, double rate, double time)
+{
+    return principal * pow(1 + rate / 100, time);
 }
 
-// Calculate Loan EMI
-double calculateEMI(double principal, double rate, double time) {
-    // Convert annual rate to monthly rate
-    double r = rate / (12 * 100);
-    // Convert years to months
-    double n = time * 12;
-    
-    // EMI = [P * r * (1+r)^n] / [(1+r)^n - 1]
-    double emi = (principal * r * pow(1 + r, n)) / (pow(1 + r, n) - 1);
-    return emi;
+double calcLoan(double principal, double rate, double time)
+{
+    double monthlyRate = rate / (12 * 100);
+    double months = time * 12;
+    return (principal * monthlyRate * pow(1 + monthlyRate, months)) / (pow(1 + monthlyRate, months) - 1);
 }
 
-int main() {
-    cout << "C++ Processor started. Waiting for operations..." << endl;
-    
-    while (true) {
-        string lock = readLock();
-        
-        if (lock == "1") {
-            // Read operation from main.txt
-            string operation;
-            double val1, val2, val3;
-            readMainFile(operation, val1, val2, val3);
-            
-            string result;
-            
-            if (operation == "FD") {
-                double amount = calculateFD(val1, val2, val3);
-                result = "FD Maturity Amount = " + to_string((int)amount);
-            } else if (operation == "LOAN") {
-                double emi = calculateEMI(val1, val2, val3);
-                result = "Loan EMI = " + to_string((int)emi);
+int main()
+{
+    cout << "Started processor..." << endl;
+
+    long lastModTime = 0;
+
+    while (1)
+    {
+        if (fileExists(inputPath))
+        {
+            long currentModTime = getFileModTime(inputPath);
+
+            // Process only if file has been modified
+            if (currentModTime > lastModTime)
+            {
+                // Small delay to ensure file write is complete
+                this_thread::sleep_for(chrono::milliseconds(10));
+
+                string operation;
+                double principal, rate, time;
+
+                if (readInput(operation, principal, rate, time))
+                {
+                    string result;
+
+                    if (operation == "FD")
+                    {
+                        double amount = calcFD(principal, rate, time);
+                        result = "FD Maturity Amount = " + to_string((int)amount);
+                    }
+                    else if (operation == "LOAN")
+                    {
+                        double emi = calcLoan(principal, rate, time);
+                        result = "Loan EMI = " + to_string((int)emi);
+                    }
+
+                    saveResult(result);
+                    lastModTime = currentModTime;
+                }
             }
-            
-            // Write result
-            writeResult(result);
-            
-            // Release lock
-            writeLock("0");
         }
-        
-        // Sleep for 50ms
+
         this_thread::sleep_for(chrono::milliseconds(50));
     }
-    
+
     return 0;
 }
